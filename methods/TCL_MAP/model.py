@@ -150,7 +150,7 @@ class MAP(BertPreTrainedModel):
             inputs_embeds = None,
             encoder_hidden_states = None,
             encoder_attention_mask = None,
-            ouput_attentions = None,
+            ouput_attentions = None,  # 이 코드가 왜 안쓰이지?
             output_hidden_states = None,
     ):
         r"""
@@ -536,6 +536,7 @@ class Cons_Model(BertPreTrainedModel):
         )
         sequence_output = encoder_outputs[0]
         pooled_output = self.pooler(sequence_output) if self.pooler is not None else None
+        # pooler 메서드를 쓰다니, BertPooler에서 처음 쓰임
 
         if not return_dict:
             return (sequence_output, pooled_output) + encoder_outputs[1:]

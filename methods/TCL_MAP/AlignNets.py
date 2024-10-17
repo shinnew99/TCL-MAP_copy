@@ -8,6 +8,65 @@ __all__ = ['CTCModule', 'AlignSubNet', 'SimModule']
 class CTCModule(nn.Module):
     def __init__(self, in_dim, out_seq_len, args):
         '''
-        
-        
+        This module is performing alignment from A (e.g., audio) to B (e.g., text).
+        :param in_dim: Dimension for input modality A
+        :param out_seq_len: Sequnce length for output modality B
+        From: https://github.com/yaohungt/Multimodal-Transformer
         '''
+
+        super(CTCModule, self).__init__()
+        # Use LSTM for predicting the position from A to B
+        self.pred_output_position_inclu_blank = nn.LSTM(in_dim, out_seq_len+1, num_layers=2, batch_first=True) # 1 denoting blank
+        self.out_seq_len = out_seq_len
+
+        self.softmax = nn.Softmax(dim=2)
+
+    def forward(self, x):
+        '''
+        :input x: Input with shape [batch_size x in_seq_len x in_dim]
+        '''
+        # NOTE that the index 0 refers to blank.
+
+        pred_output_position_inclu_blank, _ = self.pred_output_position_inclu_blank(x)
+
+        prob_pred_output_position_inclu_blank = self.softmax(pred_output_position_inclu_blank) # batch_size x in_seq_len x out_seq_len+1
+        prob_pred_output_position = prob_pred_output_position_inclu_blank[:, :, 1:]  # batch_size x in_seq_len x out_seq_len
+        prob_pred_output_position = prob_pred_output_position.transpose(1, 2) # batch_size x out_seq x in_seq_len
+        pseudo_aligned_out = torch.bmm(prob_pred_output_position, x) # batch_size x out_seq_len x in_dim
+
+        # pseudo_aligned_out is regarded as the aligned A (w.r.t B)
+        # return pseudo_aligned_out, (pred_output_position_inclu_blank)
+
+        return pseudo_aligned_out
+
+
+# similarity-based modality alignment 
+class SimModule(nn.Module):
+    def __init__(self, in_dim_x, in_dim_y, shared_dim, out_seq_len, args):
+        """
+        This module is performing alignment from A (e.g., audio) to B (e.g., text).
+        :param in_dim: Dimension for input modality A
+        :param out_seq_len: Sequence length for output modality B 
+        """
+
+        super(SimModule, self).__init__()
+        # Use LSTM for predicting the position form A to B
+        self.ctc = CTCModule(in_dim_x, out_seq_len, args)  # 여기서 CTC가 뭐야?
+        self.eps = self.eps
+        
+        self.logit_scale = nn.Parameter(torch.ones([])* np.log(1/0.07))
+        self.proj_x = nn.Linear(in_features = in_dim_x, out_features = shared_dim)
+        self.proj_y = nn.Linear(in_features = in_dim_y, out_features = shared_dim)
+
+        self.fc1 = nn.Linear(in_features = out_seq_len, out_features = round(out_seq_len/2))
+        self.fc2 = nn.Linear(in_features = round(out_seq_len/2), out_features = out_seq_len)
+        self.relu = nn.ReLU(inplace=True)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x, y):
+        '''
+        :input x: Input with shape [batch_size x in_seq_len x in_dim]
+        '''
+
+        pseudo_aligned_out = self.ctc(x)
+        
