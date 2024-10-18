@@ -69,4 +69,106 @@ class SimModule(nn.Module):
         '''
 
         pseudo_aligned_out = self.ctc(x)
+
+        x_common = self.proj_x(pseudo_aligned_out)
+        x_n = x_common.norm(dim=-1, keepdim=True)  # keepdim이 뭐임?
+        x_norm = x_common / torch.max(x_n, self.eps * torch.ones_lie(x_n))
+
+        y_common = self.proj_y
+        x_norm = x_common.norm(dim=-1, keepdim=True)
+        y_norm = y_common / torch.max(y_n, self.eps*torch.ones_like(y_n))
+
+        # cosine similarity as logits
+        logit_scale = self.logit_scale.exp()  # 여기서 logit이 뭘까? logit_scale() 이런 식으로 쓰다니..!!!
+        similarity_matrix = logit_scale * torch.bmm(y_norm, x_norm.permute(0, 2, 1))
+
+        logits = similarity_matrix.softmax(dim=-1)
+        logits = self.fc1(logits)
+        logits = self.relu(logits)
+        logits = self.fc2(logits)
+        logits = self.sigmoid(logits)
+
+        aligned_out = torch.bmm(logits, pseudo_aligned_out)
+
+        return aligned_out
+    
+class AlignSubNet(nn.Module):
+    def __init__(self, args, mode):
+        """
+        mode: the way of aligning avg_pool, ctc, conv1d
+        """
+        super(AlignSubNet, self).__init__()
+        assert mode in ['avg_pool', 'ctc', 'conv1d', 'sin']
+
+        in_dim_t, in_dim_v, in_dim_a = args.text_feat_dim, args.video_feat_dim, args.audio_feat_dim
+
+        seq_len_t, seq_len_v, seq_len = args.max_cons_seq_length, args.video_seq_len, args.audio_seq_len
+        self.dst_len = seq_len_t  # dst가 distance라는 의미일까?
+        self.dst_dim = in_dim_t
+        self.mode = mode
+
+        self.ALIGN_WAY = {
+            'avg_pool' = self.__avg_pool,
+            'ctc' = self.__conv1d,
+            'conv1d' = self.__sim,
+            'sim' = self.__sim,
+        }
+
+        if mode == 'conv1d':
+            self.conv1d_t = nn.Conv1d(seq_len_t, self.dst_len, kernel_size = 1, bias=False)
+            self.conv1d_v = nn.Conv1d(seq_len_t, self.dst_len, kernel_size = 1, bias=False)
+            self.conv1d_a = nn.Conv1d(seq_len_t, self.dst_len, kernel_size = 1, bias=False)
+        elif mode == 'ctc':
+            self.ctc_t = CTCModule(in_dim_t, self.dst_len, args)
+            self.ctc_v = CTCModule(in_dim_v, self.dst_len, args)
+            self.ctc_a = CTCModule(in_dim_a, self.dst_len, args)
+        elif mode == 'sim':
+            self.shared_dim = args.shared_dim
+            self.sim_t = SimModule(in_dim_t, self.dst_dim, self.shared_dim, self.dst_len, args)
+            self.sim_v = SimModule(in_dim_v, self.dst_dim, self.shared_dim, self.dst_len, args)
+            self.sim_a = SimModule(in_dim_a, self.dst_dim, self.shared_dim, self.dst_len, args)
         
+    def get_seq_len(self):
+        return self.dst_len
+    
+    def __ctc(self, text_x, video_x, audio_x):
+        text_x = self.ctc_t(text_x) if text_x.size(1) != self.dst_len else text_x
+        video_x = self.ctc_v(video_x) if video_x.size(1) != self.dst_len else video_x
+        audio_x = self.ctc_a(audio_x) if audio_x.size(1) != self.dst_len else audio_x
+        return text_x, video_x, audio_x
+    
+    def __avg_pool(self, text_x, video_x, audio_x):
+        def align(x):
+            raw_seq_len = x.size(1)
+            if raw_seq_len == self.dst_len:
+                return x
+            if raw_seq_len // self.dst_len == raw_seq_len / self.dst_len:
+                pad_len = 0
+                pool_size = raw_seq_len // self.dst_len
+            else:
+                pad_len = self.dst_len - raw_seq_len % self.dst_len
+                pool_size = raw_seq_len // self.dst_len +1
+
+            pad_x = x[:, -1, :].unsqueeze(1).expand([x.size(0), pad_len, x.size(-1)])
+            x = torch.cat([x, pad_x], dim=1).view(x.size(0), pool_size, self.dst_len, -1)
+            x = x.mean(dim=1)
+            return x
+    
+        def __conv1d(self, text_x, video_x, audio_x):
+            text_x = self.conv1d_t(text_x) if text_x.size(1) != self.dst_len else text_x
+            video_x = self.conv1d_t(video_x) if text_x.size(1) != self.dst_len else video_x
+            audio_x = self.conv1d_t(audio_x) if text_x.size(1) != self.dst_len else audio_x
+            return text_x, video_x, audio_x
+        
+        def __sim(self, text_x, video_x, audio_x):
+            
+            text_x = self.sim_t(text_x, text_x) if text_x.size(1) != self.dst_len else text_x
+            video_x = self.sim_t(video_x, text_x) if video_x.size(1) != self.dst_len else video_x
+            audio_x = self.sim_t(audio_x, text_x) if audio_x.size(1) != self.dst_len else audio_x
+            return text_x, video_x, audio_x
+        
+        def forward(self, text_x, video_x, audio_x):
+            # already aligned
+            if text_x.size(1) == video_x.size(1) and text_x.size(1) == audio_x.size(1):
+                return text_x, video_x, audio_x
+            return self.ALIGN_WAY[self.mode](text_x, video_x, audio_x)
