@@ -5,9 +5,15 @@ import torch.nn.functional as F
 class SupConLoss(nn.Module):
     """Supervised Contrastive Learning: https://arxiv.org/pdf/2004.11362.pdf. 
     It also supports the unsupervised contrastive loss in SimCLR"""
+    # Supervised Contrastive Learning 손실을 구현하며, 데이터 샘플 간의 유사성과 차이를 학습하도록 돕는다, 
+    # 주어진 레이블 또는 마스크를 이용해 같은 클래스의 샘플들이 서로 가까워지고, 다른 클래스의 샘플들은 멀어지도록 학습을 유도한다.
+    # 레이블 또는 마스크가 주어지지 않을때는 SimCLR 처럼 비지도 대조 손실로 동작할 수 있다. 
     def __init__(self, temperature = 0.07, contrast_mode = 'all'):
+        # parameter: 손실 계산 시 온도 매개변수를 사용하여 학습의 안정성을 높인다. 낮은 온도일 수록 샘플 간의 차이가 강조된다.
+        # contrast_mode: 'one' 또는 'all' 중 선택하여 특정 앵커(anchor)기준으로 댖고할지 ('one') 모든 샘플을 기준으로 대조할지 ('all')을 결정한다.
         super(SupConLoss, self).__init__()
         self.temperature = temperature
+        
 
     def forward(self, features, labels=None, mask=None):
         """ Compute loss for model. If both 'labels' and 'mask' are None, 
