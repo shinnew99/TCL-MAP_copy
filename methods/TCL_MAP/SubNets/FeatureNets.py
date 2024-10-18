@@ -3,7 +3,7 @@ from torch import nn
 import torch.nn.functional as F
 from transformers import BertModel, BertPretrainedModel
 
-__all__ = ['BERTEncoder']
+__all__ = ['BERTEncoder']  # 근데 문득 궁금해진건데 __all__ 이렇게 쓰는건 그 전체를 호출할 때 이렇게 쓰는 거지..?
 
 class BERTEncoder(BertPretrainedModel):
 
