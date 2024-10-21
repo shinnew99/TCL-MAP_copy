@@ -1,6 +1,6 @@
 The original code is here: https://github.com/thuiar/TCL-MAP <br>
 SO Worthy to read! <br>
-They merged multimodal inputs from the very upper, token level. That's why I'm dissecting every code line by line <be>
+They merged multimodal inputs from the very upper, token level. That's why I'm dissecting every code line by line to extract some ingsights to build my own multimodal architecture <be>
 
 <pre>
 TCL_MAP / <br>
