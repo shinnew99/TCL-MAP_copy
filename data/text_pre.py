@@ -44,7 +44,11 @@ def get_data(args, data_args):
     return outputs, cons_text_feats, condition_idx
 
 
-def get_backbone_feats(args, data_args, examples):
+def get_backbone_feats(args, data_args, examples):  # 특징추출하는 함수 
+    # BertTokenizer를 사용해 텍스트 예제를 토크나이즈하고 BERT에 적합한 입력 형식(input_ids, input_mask, segment_ids)로 변환
+    # 2가지 피처 세트를 구성한다: 
+    # -일반 피쳐: 표준 분류용
+    # - 일관된 피처: 대조 학습을 위한 추가 조건과 함께 생성된 데이터
     tokenizer = BertTokenizer.from_pretrained(args.text_backbone, do_lower_case = True)
 
     data_args['prompt_len'] = args.prompt_len
@@ -55,7 +59,7 @@ def get_backbone_feats(args, data_args, examples):
     cons_features_list = [[feat.input_ids, feat.input_mask, feat.segment_ids] for feat in cons_features]
     return features_list, cons_features_list, condition_idx
 
-class InputExample(object):
+class InputExample(object):  # ID, main 텍스트, optional 부가 텍스트, 라벨을 가진 단일 데이터 인스턴스를 나타낸다.
     """ A single training/test example for simple sequence classification."""
 
     def __init__(self, guid, text_a, text_b=None, label=None):
@@ -72,7 +76,7 @@ class InputExample(object):
         self.text_b = text_b
         self.label = label
 
-class InputFeatures(object):
+class InputFeatures(object):  # BERT 모델에 입력할 수 있는 토크나이즈 된 입력을 담고 있음.
     """ A single set of features of data."""
 
     def __init__(self, input_ids, input_mask, segment_ids):
@@ -80,7 +84,7 @@ class InputFeatures(object):
         self.input_mask = input_mask
         self.segment_ids = segment_ids
 
-class DataProcessor(object):
+class DataProcessor(object):  # 다양한 파일 형식(pkl, tsv)에서 데이터를 읽고 처리하는 기본 클래스이다.
     """ Base class for data converters for sequence classification data sets."""
     
     @classmethod
@@ -106,7 +110,7 @@ class DataProcessor(object):
                 lines.append(line)
             return lines
 
-class DatasetProcessor(DataProcessor):
+class DatasetProcessor(DataProcessor):  # "MIntRec" 또는 "MELD"와 같은 특정 데이터셋을 위해 DataProcessor를확장하여 텍스트와 라벨 열의 인덱스를 설정한다.
     
     def __init__(self, args):
         super(DatasetProcessor).__init__()
@@ -152,6 +156,7 @@ class DatasetProcessor(DataProcessor):
     
 
 def convert_examples_to_features(args, examples, data_args, tokenizer):
+    # raw text 데이터를 토크나이즈된 피처로 변환하며, 최대 시퀀스 길이로 토크나이즈 및 패딩 처리를 수행한다. 이 핫무는 일반 샘플과 확장된 샘플 모두를 처리한다.
     """Loads a data file into a list of 'InputBatch's."""
 
     max_seq_length = data_args['max_seq_len']
@@ -223,6 +228,7 @@ def convert_examples_to_features(args, examples, data_args, tokenizer):
 
 
 def _truncate_seq_pair(tokens_a, tokens_b, max_length):
+    # 두 sequence (text_a 와 text_b)의 결합 길이가 특정 길이를 초과하지 않도록 더 킨 스퀀스를 잘라낸다. 
     """ Truncates a sequence pair place to the maximum length."""
     while True:
         total_length = len(tokens_a) + len(tokens_b)
@@ -234,6 +240,10 @@ def _truncate_seq_pair(tokens_a, tokens_b, max_length):
             tokens_b.pop()
  
 
+# 데이터 입력 -> tokenization  
+# -> feature conversion (토크나이즈된 텍스트를 입력 ID, 어텐션 마스크 및 segment ID로 변환한다.) 
+# -> 출력 구조 (피처를 딕셔너리 형식으로 변환하며, 일관된 피처 및 조건 인덱스에 대한 추가 데이터도 포함된다.)
 
+# 위 코드는 BERT를 활용해 심층 언어 피처를 추출하는 시퀀스 분류 작업에 유용함, 일관된 피처 부분은 도메인 적응이나 대조 학습과 같은 작업에서 활용될 수 있으며, 데이터 변형을 비교해 모델의 강건성을 확보할 수 있다.
 
 
