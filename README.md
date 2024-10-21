@@ -14,14 +14,14 @@ TCL_MAP / <br>
 │ └── utils.py <br>
 │ <br>
 ├── methods <br>
-│ ├── TCL_MAP <br>
+│  ├── TCL_MAP <br>
 │    ├── SubNets <br>
 │       ├── transformers_encoder <br>
 │         ├── __init__.py <br>
 │         ├── multihead_attention.py <br>
 │         ├── position_embeddings.py <br>
 │         ├── transformers.py <br>
-│       │── FeatureNets.py <br>
+│       ├── FeatureNets.py <br>
 │    │── AlignNets.py <br>
 │    │── loss.py <br>
 │    │── manager.py <br>
