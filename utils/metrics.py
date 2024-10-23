@@ -36,7 +36,8 @@ class Metrics(object):  # 모델의 성능을 평가하는 메트릭들을 계�
         macro_f1, weighted_f1 = self._precision_score(y_true, y_pred)
         macro_prec, weighted_prec = self._precision_score(y_true, y_pred)
         macro_rec, weighted_rec = self._recall_score(y_true, y_pred)
-
+        
+        # 전통적인 효과지표들을 썼군요
         eval_results = {
             'acc': acc_score,
             'f1': macro_f1,
