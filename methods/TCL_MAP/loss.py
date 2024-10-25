@@ -69,8 +69,7 @@ class SupConLoss(nn.Module):
         else:
             mask = mask.float().to(device)
         
-        # 3. 대조 학습 계산
-       
+        # 3. 대조 학습 계산 - 변수들의 역할들 알아두는게 좋을듯
         contrast_count = features.shape[1]
         contrast_feature = torch.cat(torch.unbind(features, dim=1), dim=0)
         if self.contrast_mode == 'one':
@@ -90,7 +89,7 @@ class SupConLoss(nn.Module):
         )
         # for numerical stability
         logits_max, _ = torch.max(anchor_dot_contrast, dim=1, keepdim=True)
-        logits = anchor_dot_contrast - logits_max.detach()
+        logits = anchor_dot_contrast - logits_max.detach()  
 
         # 자기 대조 방지: logits_mask를 사용해 자신과의 대조는 고려하지 않도록 조정한다.
         # tile mask

@@ -19,10 +19,12 @@ class MAG(nn.Module):  # MAG를 여기서 쓰는구나, 다중 모달 데이터�
 
         text_feat_dim, audio_feat_dim, video_feat_dim = args.text_feat_dim, args.audio_feat_dim, args.video_feat_dim
 
+        # 기준점이 text를 기준으로 차원을 나타낼수 있게 표현
         self.W_hv = nn.Linear(video_feat_dim + text_feat_dim, text_feat_dim)  # 비디오와 텍스트를 결합
         self.W_ha = nn.Linear(audio_feat_dim + text_feat_dim, text_feat_dim)  # 오디오와 텍스트를 결합
 
-        self.W_v = nn.Linear(video_feat_dim, text_feat_dim)  # 비디오 특징을 텍스트 차원으로 매핑하는 선형변환
+        #  (입력 input 인자, output 인자) input을 저걸로 넣고 output으로 맞췄다라는 의미
+        self.W_v = nn.Linear(video_feat_dim, text_feat_dim)  # 비디오 특징을 텍스트 차원으로 맞춘다 매핑하는 선형변환
         self.W_a = nn.Linear(audio_feat_dim, text_feat_dim)  # 오디오 특징을 텍스트 차원으로 매핑하는 선형변환
 
         self.beta_shift = args.beta_shift  # 조정 파라미터로 텍스트와 다중 모달 특징 사이의 가중치를 조정하는데 사용됨.
@@ -39,7 +41,7 @@ class MAG(nn.Module):  # MAG를 여기서 쓰는구나, 다중 모달 데이터�
         h_m = weight_v * self.W_v(visual) + weight_a * self.W_a(acoustic)  # 비주얼과 오디오 특징을 텍스트 차원으로 매핑한 결과를 가중치와 곱해 합친 다중 모달 특징이다.
         
         em_norm = text_embedding.norm(2, dim=-1)  # text_embedding과 다중 모달(h_m)의 L2 노름을 계산해 특징의 크기를 측정 
-        hm_norm = h_m.norm(2, dim=-1)
+        hm_norm = h_m.norm(2, dim=-1)  # dim=-1은 맨 마지막 차원을 가지고 온다는 의미, l2 norm을 씀
 
         hm_norm_ones = torch.ones(hm_norm.shape, requires_grad=True).to(text_embedding.device) 
         hm_norm = torch.where(hm_norm == 0, hm_norm_ones, hm_norm)
